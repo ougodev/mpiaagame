@@ -7,7 +7,8 @@ import {
   continueGame, 
   resetGame,
   getGame,
-  removePlayer
+  removePlayer,
+  submitMrWhiteGuess
 } from '@/lib/gameStore';
 
 export async function POST(req: NextRequest) {
@@ -34,6 +35,10 @@ export async function POST(req: NextRequest) {
         
       case 'vote':
         game = submitVote(code, playerId, data.targetId);
+        break;
+        
+      case 'mrWhiteGuess':
+        game = submitMrWhiteGuess(code, data.guess);
         break;
         
       case 'continue':

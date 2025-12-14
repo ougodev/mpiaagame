@@ -14,7 +14,7 @@ export interface Player {
 export interface GameState {
   code: string;
   players: Player[];
-  phase: 'lobby' | 'wordReveal' | 'discussion' | 'voting' | 'results' | 'gameEnd';
+  phase: 'lobby' | 'wordReveal' | 'discussion' | 'voting' | 'results' | 'mrWhiteGuess' | 'gameEnd';
   currentRound: number;
   majorityWord: string;
   undercoverWord: string;
@@ -24,6 +24,7 @@ export interface GameState {
   winner?: 'civilian' | 'undercover' | 'mrwhite';
   currentSpeakerIndex: number;
   speakingOrder: string[]; // IDs des joueurs dans l'ordre de parole
+  mrWhiteGuess?: string; // La tentative de devinette de Mr. White
 }
 
 export const WORD_PAIRS: [string, string][] = [

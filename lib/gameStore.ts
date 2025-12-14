@@ -85,37 +85,73 @@ export function startGame(code: string): GameState | null {
   game.currentRound = 1;
   game.votingResults = {};
   game.currentSpeakerIndex = 0;
+  game.mrWhiteGuess = undefined;
   
-  // Assign roles
-  const shuffledPlayers = shuffle(game.players);
-  const playerCount = shuffledPlayers.length;
+  const playerCount = game.players.length;
   
-  // Role distribution based on player count
-  let undercoverCount = 1;
-  let mrWhiteCount = 0;
+  // Role distribution: undercovers = civils - 1, donc on calcule
+  // Si N joueurs: 1 Mr.White (si >= 4), reste = civils + undercovers
+  // undercovers = floor((reste - 1) / 2) pour avoir civils > undercovers
+  let mrWhiteCount = playerCount >= 4 ? 1 : 0;
+  const remainingPlayers = playerCount - mrWhiteCount;
+  // Civils = ceil(remaining / 2), Undercovers = floor(remaining / 2)
+  // Mais on veut undercovers = civils - 1
+  // Donc: civils + undercovers = remaining, undercovers = civils - 1
+  // => 2*civils - 1 = remaining => civils = (remaining + 1) / 2
+  const civilCount = Math.ceil((remainingPlayers + 1) / 2);
+  let undercoverCount = remainingPlayers - civilCount;
   
-  if (playerCount >= 5) mrWhiteCount = 1;
-  if (playerCount >= 7) undercoverCount = 2;
+  // S'assurer qu'il y a au moins 1 undercover
+  if (undercoverCount < 1) undercoverCount = 1;
   
-  shuffledPlayers.forEach((player, index) => {
+  // Séparer l'hôte des autres joueurs
+  const hostPlayer = game.players.find(p => p.id === game.hostId)!;
+  const otherPlayers = game.players.filter(p => p.id !== game.hostId);
+  
+  // Mélanger les autres joueurs pour attribuer les rôles
+  const shuffledOthers = shuffle(otherPlayers);
+  
+  // Attribuer les rôles aux autres joueurs (Mr.White en premier, puis Undercovers)
+  let mrWhiteAssigned = 0;
+  let undercoverAssigned = 0;
+  
+  shuffledOthers.forEach((player) => {
     player.isEliminated = false;
     player.hasVoted = false;
     player.votedFor = undefined;
     player.description = undefined;
     
-    if (index < mrWhiteCount) {
+    if (mrWhiteAssigned < mrWhiteCount) {
       player.role = 'mrwhite';
       player.word = '';
-    } else if (index < mrWhiteCount + undercoverCount) {
+      mrWhiteAssigned++;
+    } else if (undercoverAssigned < undercoverCount) {
       player.role = 'undercover';
       player.word = undercoverWord;
+      undercoverAssigned++;
     } else {
       player.role = 'civilian';
       player.word = majorityWord;
     }
   });
   
-  game.players = shuffle(shuffledPlayers);
+  // L'hôte est toujours civil ou undercover (jamais Mr.White)
+  hostPlayer.isEliminated = false;
+  hostPlayer.hasVoted = false;
+  hostPlayer.votedFor = undefined;
+  hostPlayer.description = undefined;
+  
+  // Si on n'a pas assez d'undercovers, l'hôte peut être undercover
+  if (undercoverAssigned < undercoverCount) {
+    hostPlayer.role = 'undercover';
+    hostPlayer.word = undercoverWord;
+  } else {
+    hostPlayer.role = 'civilian';
+    hostPlayer.word = majorityWord;
+  }
+  
+  // Recombiner et mélanger tous les joueurs
+  game.players = shuffle([hostPlayer, ...shuffledOthers]);
   
   // Créer l'ordre de parole aléatoire (tous les joueurs actifs)
   game.speakingOrder = shuffle(game.players.map(p => p.id));
@@ -196,11 +232,40 @@ export function submitVote(code: string, voterId: string, targetId: string): Gam
     if (eliminatedPlayer) {
       eliminatedPlayer.isEliminated = true;
       game.eliminatedPlayerId = eliminatedId;
+      
+      // Si Mr. White est éliminé, il a une chance de deviner le mot
+      if (eliminatedPlayer.role === 'mrwhite') {
+        game.phase = 'mrWhiteGuess';
+        return game;
+      }
     }
     
     game.phase = 'results';
     
     // Check win conditions
+    checkWinCondition(game);
+  }
+  
+  return game;
+}
+
+// Nouvelle fonction pour la devinette de Mr. White
+export function submitMrWhiteGuess(code: string, guess: string): GameState | null {
+  const game = games.get(code);
+  if (!game) return null;
+  
+  game.mrWhiteGuess = guess;
+  
+  // Vérifier si Mr. White a deviné correctement (insensible à la casse)
+  const isCorrect = guess.toLowerCase().trim() === game.majorityWord.toLowerCase().trim();
+  
+  if (isCorrect) {
+    // Mr. White gagne !
+    game.winner = 'mrwhite';
+    game.phase = 'gameEnd';
+  } else {
+    // Mr. White a échoué, continuer le jeu normalement
+    game.phase = 'results';
     checkWinCondition(game);
   }
   

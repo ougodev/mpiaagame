@@ -18,6 +18,7 @@ export default function GamePage() {
   const [description, setDescription] = useState('');
   const [selectedVote, setSelectedVote] = useState<string>('');
   const [copied, setCopied] = useState(false);
+  const [mrWhiteGuess, setMrWhiteGuess] = useState('');
 
   const fetchGame = useCallback(async () => {
     try {
@@ -117,6 +118,12 @@ export default function GamePage() {
     if (!selectedVote) return;
     performAction('vote', { targetId: selectedVote });
     setSelectedVote('');
+  };
+  
+  const submitGuess = () => {
+    if (!mrWhiteGuess.trim()) return;
+    performAction('mrWhiteGuess', { guess: mrWhiteGuess.trim() });
+    setMrWhiteGuess('');
   };
   
   const continueGame = () => performAction('continue');
@@ -421,6 +428,60 @@ export default function GamePage() {
           </>
         )}
 
+        {/* MR WHITE GUESS PHASE */}
+        {game.phase === 'mrWhiteGuess' && (
+          <>
+            <div className="card text-center">
+              <div className="bg-purple-500/20 rounded-lg p-6 mb-4">
+                <p className="text-4xl mb-3">🎩</p>
+                <h2 className="text-2xl font-bold text-purple-400 mb-2">Mr. White a été démasqué !</h2>
+                <p className="text-white/70">
+                  {game.players.find(p => p.id === game.eliminatedPlayerId)?.name} était Mr. White !
+                </p>
+              </div>
+              
+              <div className="bg-yellow-500/20 rounded-lg p-4">
+                <p className="text-yellow-400 font-bold text-lg mb-2">🎯 Dernière chance !</p>
+                <p className="text-white/70 text-sm">
+                  Mr. White peut tenter de deviner le mot des Civils pour gagner la partie !
+                </p>
+              </div>
+            </div>
+
+            {currentPlayer?.id === game.eliminatedPlayerId ? (
+              <div className="card">
+                <h3 className="font-bold mb-3 text-center text-purple-400">🎩 C'est ta dernière chance !</h3>
+                <p className="text-white/70 text-sm text-center mb-4">
+                  Devine le mot des Civils pour gagner !
+                </p>
+                <input
+                  type="text"
+                  value={mrWhiteGuess}
+                  onChange={(e) => setMrWhiteGuess(e.target.value)}
+                  placeholder="Le mot des civils est..."
+                  className="input-field text-lg mb-3"
+                  maxLength={50}
+                  autoFocus
+                />
+                <button 
+                  onClick={submitGuess}
+                  disabled={!mrWhiteGuess.trim()}
+                  className="btn-primary w-full text-lg disabled:opacity-50"
+                >
+                  🎯 Deviner !
+                </button>
+              </div>
+            ) : (
+              <div className="card text-center">
+                <p className="text-white/50 text-lg">⏳ Mr. White réfléchit...</p>
+                <p className="text-white/30 text-sm mt-2">
+                  En attente de sa tentative de devinette
+                </p>
+              </div>
+            )}
+          </>
+        )}
+
         {/* RESULTS PHASE */}
         {game.phase === 'results' && (
           <>
@@ -477,10 +538,24 @@ export default function GamePage() {
                 <p className="text-lg mb-2">Les gagnants sont :</p>
                 <p className="text-4xl font-bold">
                   {game.winner === 'civilian' && '😇 Les Civils !'}
-                  {game.winner === 'undercover' && '🕵️ L\'Undercover !'}
+                  {game.winner === 'undercover' && '🕵️ Les Undercovers !'}
                   {game.winner === 'mrwhite' && '🎩 Mr. White !'}
                 </p>
               </div>
+
+              {/* Afficher la tentative de Mr. White si elle existe */}
+              {game.mrWhiteGuess && (
+                <div className={`rounded-lg p-4 mb-4 ${
+                  game.winner === 'mrwhite' ? 'bg-green-500/20' : 'bg-red-500/20'
+                }`}>
+                  <p className="text-white/70 mb-1">Mr. White a deviné :</p>
+                  <p className={`text-xl font-bold ${
+                    game.winner === 'mrwhite' ? 'text-green-400' : 'text-red-400'
+                  }`}>
+                    "{game.mrWhiteGuess}" {game.winner === 'mrwhite' ? '✅' : '❌'}
+                  </p>
+                </div>
+              )}
 
               <div className="text-left space-y-4">
                 <div>
