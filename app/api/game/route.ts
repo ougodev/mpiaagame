@@ -11,14 +11,14 @@ export async function POST(req: NextRequest) {
     }
     
     if (action === 'join') {
-      let game = getGame(code);
+      const existingGame = getGame(code);
       
-      if (!game) {
+      if (!existingGame) {
         // Create the game if it doesn't exist (for the host)
         return NextResponse.json({ success: false, error: 'Partie introuvable' });
       }
       
-      game = addPlayer(code, playerId, playerName);
+      const game = addPlayer(code, playerId, playerName);
       
       if (!game) {
         return NextResponse.json({ success: false, error: 'Impossible de rejoindre' });
