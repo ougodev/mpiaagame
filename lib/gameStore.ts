@@ -20,6 +20,7 @@ export function createGame(code: string, hostId: string, hostName: string): Game
     hostId,
     votingResults: {},
     currentSpeakerIndex: 0,
+    speakingOrder: [],
   };
   games.set(code, game);
   return game;
@@ -115,6 +116,10 @@ export function startGame(code: string): GameState | null {
   });
   
   game.players = shuffle(shuffledPlayers);
+  
+  // Créer l'ordre de parole aléatoire (tous les joueurs actifs)
+  game.speakingOrder = shuffle(game.players.map(p => p.id));
+  
   game.phase = 'wordReveal';
   
   return game;
@@ -243,6 +248,10 @@ export function continueGame(code: string): GameState | null {
     p.votedFor = undefined;
     p.description = undefined;
   });
+  
+  // Nouveau ordre de parole aléatoire pour ce round (seulement les joueurs actifs)
+  const activePlayers = game.players.filter(p => !p.isEliminated);
+  game.speakingOrder = shuffle(activePlayers.map(p => p.id));
   
   game.phase = 'wordReveal';
   

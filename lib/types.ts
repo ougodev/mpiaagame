@@ -23,6 +23,7 @@ export interface GameState {
   eliminatedPlayerId?: string;
   winner?: 'civilian' | 'undercover' | 'mrwhite';
   currentSpeakerIndex: number;
+  speakingOrder: string[]; // IDs des joueurs dans l'ordre de parole
 }
 
 export const WORD_PAIRS: [string, string][] = [

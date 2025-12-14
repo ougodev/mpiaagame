@@ -127,6 +127,15 @@ export default function GamePage() {
   const activePlayers = game?.players.filter(p => !p.isEliminated) || [];
   const hasSubmittedDescription = currentPlayer?.description;
   const hasVoted = currentPlayer?.hasVoted;
+  
+  // Ordre de parole et tour actuel
+  const speakingOrder = game?.speakingOrder || [];
+  const currentSpeakerIndex = speakingOrder.findIndex(id => {
+    const player = game?.players.find(p => p.id === id);
+    return player && !player.isEliminated && !player.description;
+  });
+  const currentSpeakerId = currentSpeakerIndex >= 0 ? speakingOrder[currentSpeakerIndex] : null;
+  const isMyTurn = currentSpeakerId === playerId;
 
   if (loading) {
     return (
@@ -239,6 +248,7 @@ export default function GamePage() {
                 <div className="bg-purple-500/20 rounded-lg p-4">
                   <p className="text-purple-400 text-2xl font-bold mb-2">Mr. White 🎩</p>
                   <p className="text-white/70">Tu n'as pas de mot ! Écoute les autres et improvise.</p>
+                  <p className="text-white/50 text-sm mt-2">💡 Bluff en écoutant les descriptions des autres !</p>
                 </div>
               ) : currentPlayer.role === 'undercover' ? (
                 <div className="bg-red-500/20 rounded-lg p-4">
@@ -253,52 +263,92 @@ export default function GamePage() {
               )}
             </div>
 
+            {/* Ordre de parole */}
+            <div className="card">
+              <h3 className="font-bold mb-3">🎯 Ordre de passage</h3>
+              <div className="space-y-2">
+                {speakingOrder.map((id, index) => {
+                  const player = game.players.find(p => p.id === id);
+                  if (!player || player.isEliminated) return null;
+                  
+                  const hasSpoken = !!player.description;
+                  const isSpeaking = id === currentSpeakerId;
+                  const isMe = id === playerId;
+                  
+                  return (
+                    <div 
+                      key={id}
+                      className={`flex items-center gap-3 p-3 rounded-lg transition-all ${
+                        isSpeaking 
+                          ? 'bg-yellow-500/20 border-2 border-yellow-500 animate-pulse' 
+                          : hasSpoken 
+                            ? 'bg-green-500/10 border border-green-500/30' 
+                            : 'bg-white/5'
+                      } ${isMe ? 'ring-2 ring-primary' : ''}`}
+                    >
+                      <span className="text-lg font-bold text-white/50 w-6">{index + 1}</span>
+                      <span className="text-xl">
+                        {hasSpoken ? '✅' : isSpeaking ? '🎤' : '⏳'}
+                      </span>
+                      <span className={`flex-1 ${isSpeaking ? 'font-bold text-yellow-400' : ''}`}>
+                        {player.name}
+                        {isMe && <span className="text-primary ml-2">(Toi)</span>}
+                      </span>
+                      {hasSpoken && (
+                        <span className="text-white/50 text-sm truncate max-w-[100px]">
+                          "{player.description}"
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Zone de saisie */}
             {!currentPlayer.isEliminated && (
               <div className="card">
-                <h3 className="font-bold mb-3">💬 Décris ton mot</h3>
                 {hasSubmittedDescription ? (
                   <div className="bg-green-500/20 rounded-lg p-4 text-center">
-                    <p className="text-green-400">✅ Description envoyée !</p>
-                    <p className="text-white/70 mt-2">"{currentPlayer.description}"</p>
+                    <p className="text-green-400 text-lg">✅ C'est bon !</p>
+                    <p className="text-white/70 mt-2">Ta description : "{currentPlayer.description}"</p>
+                    <p className="text-white/50 text-sm mt-2">En attente des autres joueurs...</p>
                   </div>
-                ) : (
+                ) : isMyTurn ? (
                   <div className="space-y-3">
+                    <div className="bg-yellow-500/20 rounded-lg p-3 text-center mb-3">
+                      <p className="text-yellow-400 font-bold text-lg">🎤 C'est ton tour !</p>
+                      <p className="text-white/70 text-sm">Décris ton mot en un mot ou une phrase courte</p>
+                    </div>
                     <input
                       type="text"
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Décris ton mot sans le dire..."
-                      className="input-field"
+                      placeholder="Ta description..."
+                      className="input-field text-lg"
                       maxLength={50}
+                      autoFocus
                     />
-                    <button onClick={submitDesc} className="btn-primary w-full">
-                      Envoyer
+                    <button 
+                      onClick={submitDesc} 
+                      disabled={!description.trim()}
+                      className="btn-primary w-full text-lg disabled:opacity-50"
+                    >
+                      📤 Envoyer ma description
                     </button>
+                  </div>
+                ) : (
+                  <div className="text-center p-4">
+                    <p className="text-white/50 text-lg">⏳ Attends ton tour...</p>
+                    <p className="text-white/30 text-sm mt-2">
+                      C'est au tour de : <span className="text-yellow-400 font-bold">
+                        {game.players.find(p => p.id === currentSpeakerId)?.name || '...'}
+                      </span>
+                    </p>
                   </div>
                 )}
               </div>
             )}
-
-            <div className="card">
-              <h3 className="font-bold mb-3">📝 Descriptions</h3>
-              <div className="space-y-2">
-                {activePlayers.map((player) => (
-                  <div 
-                    key={player.id}
-                    className={`p-3 rounded-lg ${
-                      player.id === playerId ? 'bg-primary/20' : 'bg-white/5'
-                    }`}
-                  >
-                    <p className="font-medium">{player.name}</p>
-                    {player.description ? (
-                      <p className="text-white/70 text-sm">"{player.description}"</p>
-                    ) : (
-                      <p className="text-white/30 text-sm italic">En train d'écrire...</p>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
 
             {isHost && (
               <button onClick={startVoting} className="btn-primary w-full">
